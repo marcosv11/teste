@@ -1,108 +1,178 @@
-let filename = 'data/city.csv';
+'use strict';
 
-// all of your code should be inside this command
-d3.csv(filename).then(function(loadedData) {
-  
-  // let's see if our data loaded correctly
-  // (and take a peek at how it's formatted)
-  console.log(loadedData);
-  
-  // empty lists for our data and the labels
-  let data =   [];
-  let labels = [];
-  
-  // use a for-loop to load the data from the
-  // file into our lists
-  for (let i=0; i<loadedData.length; i++) {
-    console.log(loadedData[i]);
-    
-    // get the year and mean temp for each listing
-    // note: the 'keys' here correspond to the headers
-    // in our file and need to be typed exactly
-    let cidade =     loadedData[i].cidade;
-    let populacao = loadedData[i].populacao;
-    console.log(populacao);
-    
-    // add the year to our labels
-    labels.push(cidade);
-    
-    // and mean temp to the data
-    data.push(populacao);    
-  }
-  
-  
-var ctx = document.getElementById('myAreaChart').getContext("2d");
+window.chartColors = {
+	red: 'rgb(244 67 54 / 40%)',
+	orange: 'rgb(255, 159, 64)',
+	yellow: 'rgb(255, 205, 86)',
+	green: 'rgb(76 175 80 / 40%)',
+	blue: 'rgb(54, 162, 235)',
+	purple: 'rgb(153, 102, 255)',
+	grey: 'rgb(201, 203, 207)'
+};
 
-var gradientStroke = ctx.createLinearGradient(500, 0, 100, 0);
-gradientStroke.addColorStop(0, '#fc8f5a');
-gradientStroke.addColorStop(1, '#f58854');
+(function(global) {
+	var Months = [
+		'January',
+		'February',
+		'March',
+		'April',
+		'May',
+		'June',
+		'July',
+		'August',
+		'September',
+		'October',
+		'November',
+		'December'
+	];
 
-var gradientFill = ctx.createLinearGradient(0, 0, 0, 200);
-gradientFill.addColorStop(0, 'rgba(251, 158,29, 0.5)');
-gradientFill.addColorStop(0.2, 'rgba(255, 158, 29, 0.25)');
-gradientFill.addColorStop(1, 'rgba(255, 255, 255, 0)');
+	var COLORS = [
+		'#4dc9f6',
+		'#f67019',
+		'#f53794',
+		'#537bc4',
+		'#acc236',
+		'#166a8f',
+		'#00a950',
+		'#58595b',
+		'#8549ba'
+	];
 
-var myChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: labels,
-        datasets: [{
-            label: "",
-            borderColor: gradientStroke,
-            pointBorderColor: '#fcb149',
-            pointBackgroundColor: '#fff',
-         
-           pointBorderWidth: 5,
-           pointRadius: 5,
-            fill: true,
-            backgroundColor: gradientFill,
-            borderWidth: 4,
-            data: data
-        }]
-    },
-    options: {
-        animation: {
-            easing: "easeInOutBack"
-        },
-        legend: {
-            position: "bottom",
-           display: false
-        },
-        scales: {
-            yAxes: [{
-                ticks: {
-                    fontColor: "rgba(0,0,0,0.5)",
-                    fontStyle: "bold",
-                    beginAtZero: true,
-                    maxTicksLimit: 5,
-                    padding: 15
-                },
-                gridLines: {
-                    drawTicks: false,
-                    display: false
-                }
+	var Samples = global.Samples || (global.Samples = {});
+	var Color = global.Color;
 
-            }],
-            xAxes: [{
-                gridLines: {
-                    zeroLineColor: "transparent"
-                },
-                ticks: {
-                    padding: 10,
-                    fontColor: "rgba(0,0,0,0.5)",
-                    fontStyle: "bold"
-                }
-            }]
-        }
-    }
-});
+	Samples.utils = {
+		// Adapted from http://indiegamr.com/generate-repeatable-random-numbers-in-js/
+		srand: function(seed) {
+			this._seed = seed;
+		},
 
-});
+		rand: function(min, max) {
+			var seed = this._seed;
+			min = min === undefined ? 0 : min;
+			max = max === undefined ? 1 : max;
+			this._seed = (seed * 9301 + 49297) % 233280;
+			return min + (this._seed / 233280) * (max - min);
+		},
 
+		numbers: function(config) {
+			var cfg = config || {};
+			var min = cfg.min || 0;
+			var max = cfg.max || 1;
+			var from = cfg.from || [];
+			var count = cfg.count || 8;
+			var decimals = cfg.decimals || 8;
+			var continuity = cfg.continuity || 1;
+			var dfactor = Math.pow(10, decimals) || 0;
+			var data = [];
+			var i, value;
 
+			for (i = 0; i < count; ++i) {
+				value = (from[i] || 0) + this.rand(min, max);
+				if (this.rand() <= continuity) {
+					data.push(Math.round(dfactor * value) / dfactor);
+				} else {
+					data.push(null);
+				}
+			}
 
+			return data;
+		},
 
+		labels: function(config) {
+			var cfg = config || {};
+			var min = cfg.min || 0;
+			var max = cfg.max || 100;
+			var count = cfg.count || 8;
+			var step = (max - min) / count;
+			var decimals = cfg.decimals || 8;
+			var dfactor = Math.pow(10, decimals) || 0;
+			var prefix = cfg.prefix || '';
+			var values = [];
+			var i;
 
+			for (i = min; i < max; i += step) {
+				values.push(prefix + Math.round(dfactor * i) / dfactor);
+			}
 
+			return values;
+		},
 
+		months: function(config) {
+			var cfg = config || {};
+			var count = cfg.count || 12;
+			var section = cfg.section;
+			var values = [];
+			var i, value;
 
+			for (i = 0; i < count; ++i) {
+				value = Months[Math.ceil(i) % 12];
+				values.push(value.substring(0, section));
+			}
+
+			return values;
+		},
+
+		color: function(index) {
+			return COLORS[index % COLORS.length];
+		},
+
+		transparentize: function(color, opacity) {
+			var alpha = opacity === undefined ? 0.5 : 1 - opacity;
+			return Color(color).alpha(alpha).rgbString();
+		}
+	};
+
+	// DEPRECATED
+	window.randomScalingFactor = function() {
+		return Math.round(Samples.utils.rand(-100, 100));
+	};
+
+	// INITIALIZATION
+
+	Samples.utils.srand(Date.now());
+
+	// Google Analytics
+	/* eslint-disable */
+	
+
+}(this));
+
+var config = {
+			type: 'line',
+			data: {
+				labels: ['1 semana', '2 semana', '3 semana', '4 semana'],
+				datasets: [{
+					label: 'Com erro',
+					borderColor: window.chartColors.red,
+					backgroundColor: window.chartColors.red,
+					data: [
+						723,
+                        234,
+                        534,
+                        222
+					],
+                    
+					fill: false,
+				}, 
+                     
+                {
+					label: 'Sem erro',
+					borderColor: window.chartColors.green,
+					backgroundColor: window.chartColors.green,
+					data: [
+						323,
+                        734,
+                        234,
+                        122
+					],
+					fill: false,
+				}]
+			},
+			
+		};
+
+		window.onload = function() {
+			var ctx = document.getElementById('myAreaChart').getContext('2d');
+			window.myLine = new Chart(ctx, config);
+		};
